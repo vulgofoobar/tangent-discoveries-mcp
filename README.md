@@ -1,1 +1,1 @@
-# obsidian_mcp
+# tangent-discoveries-mcp
