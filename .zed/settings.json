@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "servers": {
+      "obsidian-mcp": {
+        "command": "uv",
+        "args": ["run", "python", "mcp_server.py"],
+        "env": {
+          "DOTENV": ".env"
+        }
+      }
+    }
+  }
+}

@@ -1,21 +1,45 @@
 import re
+import os
 from datetime import datetime
 from pathlib import Path
 from pydantic import Field
 from mcp.server.fastmcp import FastMCP
 
+env_file = Path(".env")
+if env_file.exists():
+    for line in env_file.read_text().splitlines():
+        if line.strip() and not line.startswith("#"):
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
 mcp = FastMCP("ObsidianMCP", log_level="ERROR")
 
-VAULT_ROUGH_NOTES = Path.home() / "Library/Mobile Documents/iCloud~md~obsidian/Documents/Vault 32/01. rough notes"
+if "OBSIDIAN_ROUGH_NOTES" in os.environ:
+    rough_notes_path = os.environ["OBSIDIAN_ROUGH_NOTES"]
+    if rough_notes_path.startswith("~"):
+        rough_notes_path = rough_notes_path.replace("~", str(Path.home()), 1)
+    ROUGH_NOTES = Path(rough_notes_path)
+else:
+    ROUGH_NOTES = Path("rough-notes")
 
 @mcp.resource(
     "obsidian://rough-notes",
     mime_type="application/json"
 )
-def list_rough_notes() -> list[str]:
-    if not VAULT_ROUGH_NOTES.exists():
-        return []
-    return [f.name for f in VAULT_ROUGH_NOTES.glob("*.md")]
+def list_docs() -> list[str]:
+    if ROUGH_NOTES.exists():
+        return [f.name for f in ROUGH_NOTES.glob("*.md")]
+    return []
+
+@mcp.resource(
+    "obsidian://rough-notes/{filename}",
+    mime_type="text/markdown"
+)
+def get_rough_note(filename: str) -> str:
+    filepath = ROUGH_NOTES / filename
+    if not filepath.exists():
+        raise ValueError(f"File not found: {filename}")
+    return filepath.read_text()
 
 @mcp.tool(
     name="create_tangent_discoveries",
@@ -24,7 +48,7 @@ def list_rough_notes() -> list[str]:
 def create_tangent_discoveries(
     filename: str = Field(description="The .md filename from rough notes to process")
 ):
-    filepath = VAULT_ROUGH_NOTES / filename
+    filepath = ROUGH_NOTES / filename
 
     if not filepath.exists():
         raise ValueError(f"File not found: {filename}")
@@ -66,7 +90,7 @@ def create_tangent_discoveries(
                 break
 
         new_filename = f"{discovery_name}.md"
-        new_filepath = VAULT_ROUGH_NOTES / new_filename
+        new_filepath = ROUGH_NOTES / new_filename
 
         if new_filepath.exists():
             updated_count += 1
